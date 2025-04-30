@@ -1,1 +1,317 @@
+import random
+import time
 
+class Mob:
+    def __init__(self, name, health, attack, drops_food, hostile):
+        self.name = name
+        self.health = health
+        self.attack = attack
+        self.drops_food = drops_food
+        self.hostile = hostile
+
+class Player:
+    def __init__(self, health, attack):
+        self.health = health
+        self.attack = attack
+        self.inventory = ["health potion", "attack boost"]
+        self.hunger = 100
+        self.food = 0
+        self.food_hunger = 0
+        self.location = "forest"
+        self.time = "day"
+        self.time_start = time.time()
+        self.gold = 0
+
+    def update_hunger(self):
+        self.hunger -= 1
+        if self.hunger <= 0:
+            self.health -= 5
+            print("You are starving! You lose 5 health.")
+
+    def eat_food(self):
+        if self.food > 0:
+            self.hunger = min(100, self.hunger + self.food_hunger)
+            print("You ate the food and gained", self.food_hunger, "hunger points!")
+            self.food -= 1
+            self.food_hunger = 0
+        else:
+            print("You don't have any food to eat.")
+
+    def use_health_potion(self):
+        if "health potion" in self.inventory:
+            self.health = min(100, self.health + 20)
+            self.inventory.remove("health potion")
+            print("You used a health potion and gained 20 health!")
+        else:
+            print("You don't have any health potions.")
+
+    def use_attack_boost(self):
+        if "attack boost" in self.inventory:
+            self.attack += 5
+            self.inventory.remove("attack boost")
+            print("You used an attack boost and increased your attack by 5!")
+        else:
+            print("You don't have any attack boosts.")
+
+    def update_time(self):
+        current_time = time.time()
+        if self.time == "day":
+            if current_time - self.time_start >= 300:
+                self.time = "night"
+                self.time_start = current_time
+                print("The sun has set. It's now night.")
+        else:
+            if current_time - self.time_start >= 420:
+                self.time = "day"
+                self.time_start = current_time
+                print("The sun has risen. It's now day.")
+
+class Chest:
+    def __init__(self):
+        self.items = []
+        self.generate_items()
+
+    def generate_items(self):
+        roll = random.random()
+        if roll < 0.12:
+            self.items.append({"name": "Sword", "damage_bonus": 3})
+        elif roll < 0.28:
+            self.items.append({"name": "Pickaxe", "damage_bonus": 1})
+        elif roll < 0.45:
+            self.items.append({"name": "Bread", "hunger_bonus": 20})
+        else:
+            self.items.append({"name": "Gold"})
+
+def get_mob(location, time):
+    mobs = {
+        "forest": [
+            Mob("Zombie", 10, 2, True, True),
+            Mob("Goblin", 10, 2, True, True),
+            Mob("Deer", 10, 0, True, False),
+            Mob("Rabbit", 10, 0, True, False),
+            Mob("Skeleton", 10, 2, False, True)
+        ],
+        "cave": [
+            Mob("Troll", 10, 2, False, True),
+            Mob("Orc", 10, 2, True, True),
+            Mob("Bat", 10, 1, True, True),
+            Mob("Cave Spider", 10, 1, False, True),
+            Mob("Cave Rat", 10, 0, True, False)
+        ],
+        "mountain": [
+            Mob("Yeti", 10, 2, True, True),
+            Mob("Giant", 10, 2, False, True),
+            Mob("Wolf", 10, 1, True, True),
+            Mob("Mountain Goat", 10, 0, True, False),
+            Mob("Snowman", 10, 0, False, False)
+        ]
+    }
+    mobs_in_location = mobs[location]
+    if time == "day":
+        non_hostile_mobs = [mob for mob in mobs_in_location if not mob.hostile]
+        hostile_mobs = [mob for mob in mobs_in_location if mob.hostile]
+        mob = random.choice(non_hostile_mobs + hostile_mobs[:len(non_hostile_mobs)])
+    else:
+        non_hostile_mobs = [mob for mob in mobs_in_location if not mob.hostile]
+        hostile_mobs = [mob for mob in mobs_in_location if mob.hostile]
+        mob = random.choice(hostile_mobs + non_hostile_mobs[:len(hostile_mobs)])
+    return mob
+
+def find_chest():
+    if random.random() < 0.4:
+        return Chest()
+    else:
+        return None
+
+def start_game():
+    player = Player(100, 3)
+    player.time_start = time.time()
+    print("Welcome to the adventure game!")
+    print("You are currently in the", player.location)
+    while True:
+        player.update_time()
+        event = random.random()
+        if event < 0.3:
+            mob = get_mob(player.location, player.time)
+            mob.health = 10
+            print("You encountered a", mob.name)
+            print("The", mob.name, "has", mob.health, "health.")
+            while mob.health > 0:
+                while True:
+                    print("\nWhat do you want to do?")
+                    print("1. Attack the mob")
+                    print("2. Run away")
+                    choice = input("Enter the number of your choice: ")
+                    if choice == "1":
+                        print("You attacked the mob for", player.attack, "damage!")
+                        mob.health -= player.attack
+                        if mob.health > 0:
+                            print("The", mob.name, "has", mob.health, "health left.")
+                            input("Press enter to continue...")
+                        else:
+                            print("You killed the", mob.name)
+                            if not mob.hostile and mob.drops_food:
+                                player.food += 1
+                                food_amount = random.randint(15, 30)
+                                player.food_hunger = food_amount
+                                print("The", mob.name, "dropped food that adds", food_amount, "hunger points when eaten!")
+                            elif mob.hostile:
+                                if random.random() < 0.5:
+                                    loot = random.choice(["Sword", "Pickaxe", "Shovel"])
+                                    if loot == "Sword":
+                                        player.attack += 3
+                                        print("The", mob.name, "dropped a sword that does +3 damage! Your attack is now", player.attack)
+                                    elif loot == "Pickaxe":
+                                        player.attack += 1
+                                        print("The", mob.name, "dropped a pickaxe that does +1 damage! Your attack is now", player.attack)
+                                    elif loot == "Shovel":
+                                        if "Shovel" not in player.inventory:
+                                            player.inventory.append("Shovel")
+                                        print("The", mob.name, "dropped a shovel! You can use it to dig for treasure.")
+                            input("Press enter to continue...")
+                        break
+                    elif choice == "2":
+                        if mob.hostile:
+                            if random.random() < 0.55:
+                                print("You successfully ran away from the", mob.name)
+                                mob.health = 0
+                            else:
+                                print("You tried to run away, but the", mob.name, "caught up to you!")
+                                player.health -= mob.attack
+                                print("The", mob.name, "attacked you for", mob.attack, "damage!")
+                                print("Your current health is", player.health)
+                                input("Press enter to continue...")
+                        else:
+                            print("You ran away from the", mob.name)
+                            mob.health = 0
+                        break
+                    else:
+                        print("Invalid choice. Please try again.")
+                if mob.health <= 0:
+                    break
+                if mob.health > 0:
+                    player.health -= mob.attack
+                    print("The", mob.name, "attacked you for", mob.attack, "damage!")
+                    print("Your current health is", player.health)
+                    input("Press enter to continue...")
+        elif event < 0.7:
+            chest = find_chest()
+            if chest:
+                print("You found a chest!")
+                for item in chest.items:
+                    if item["name"] == "Sword":
+                        player.attack += 3
+                        print("You found a sword that does +3 damage! Your attack is now", player.attack)
+                    elif item["name"] == "Pickaxe":
+                        player.attack += 1
+                        print("You found a pickaxe that does +1 damage! Your attack is now", player.attack)
+                    elif item["name"] == "Bread":
+                        player.hunger += 20
+                        if player.hunger > 100:
+                            player.hunger = 100
+                        print("You found a bread that adds 20 to hunger points! Your hunger is now", player.hunger)
+                    elif item["name"] == "Gold":
+                        gold_amount = random.randint(5, 15)
+                        player.gold += gold_amount
+                        print("You found", gold_amount, "gold!")
+            else:
+                print("You didn't find anything.")
+        elif event < 0.8:
+            print("You encountered a villager!")
+            while True:
+                print("\nWhat do you want to do?")
+                print("1. Talk to the villager")
+                print("2. Ignore the villager")
+                choice = input("Enter your choice: ")
+                if choice == "1":
+                    print("The villager greets you warmly and offers to trade with you.")
+                    while True:
+                        print("\nWhat do you want to trade for?")
+                        print("1. Food (3 gold coins)")
+                        print("2. Sword (5 gold coins)")
+                        print("3. Bow and arrows (10 gold coins)")
+                        print("4. Nothing")
+                        choice = input("Enter your choice: ")
+                        if choice == "1":
+                            if player.gold >= 3:
+                                player.gold -= 3
+                                player.food += 1
+                                food_amount = random.randint(15, 30)
+                                player.food_hunger = food_amount
+                                print("You bought food that adds", food_amount, "hunger points when eaten!")
+                            else:
+                                print("You don't have enough gold coins.")
+                        elif choice == "2":
+                            if player.gold >= 5:
+                                player.gold -= 5
+                                player.attack += 3
+                                print("You bought a sword that does +3 damage! Your attack is now", player.attack)
+                            else:
+                                print("You don't have enough gold coins.")
+                        elif choice == "3":
+                            if player.gold >= 10:
+                                player.gold -= 10
+                                player.attack += 5
+                                print("You bought a bow and arrows that does +5 damage! Your attack is now", player.attack)
+                            else:
+                                print("You don't have enough gold coins.")
+                        elif choice == "4":
+                            print("You said goodbye to the villager and continued on your way.")
+                            break
+                        else:
+                            print("Invalid choice. Please try again.")
+                        print("Your current gold coins:", player.gold)
+                    break
+                elif choice == "2":
+                    print("You ignored the villager and continued on your way.")
+                    break
+                else:
+                    print("Invalid choice. Please try again.")
+        else:
+            print("You explore the area and find nothing of interest.")
+        print("\nWhat do you want to do?")
+        print("1. Explore the area")
+        print("2. Check your inventory")
+        print("3. Eat food")
+        print("4. Use health potion")
+        print("5. Use attack boost")
+        print("6. Move to a different location")
+        choice = input("Enter your choice: ")
+        if choice == "1":
+            pass
+        elif choice == "2":
+            print("You have the following items:")
+            print("Health:", player.health)
+            print("Attack:", player.attack)
+            print("Hunger:", player.hunger)
+            print("Food:", player.food)
+            print("Inventory:", player.inventory)
+            print("Gold:", player.gold)
+        elif choice == "3":
+            player.eat_food()
+        elif choice == "4":
+            player.use_health_potion()
+        elif choice == "5":
+            player.use_attack_boost()
+        elif choice == "6":
+            print("You can move to the following locations:")
+            print("1. Forest")
+            print("2. Cave")
+            print("3. Mountain")
+            choice = input("Enter your choice: ")
+            if choice == "1":
+                player.location = "forest"
+            elif choice == "2":
+                player.location = "cave"
+            elif choice == "3":
+                player.location = "mountain"
+            else:
+                print("Invalid choice. Please try again.")
+        else:
+            print("Invalid choice. Please try again.")
+        player.update_hunger()
+        print("Your current health is", player.health)
+        print("Your current hunger is", player.hunger)
+        print("The current time is", player.time)
+
+start_game()
